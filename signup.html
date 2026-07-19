@@ -227,6 +227,11 @@
         <input type="text" id="villageName" name="villageName" placeholder="اكتب اسم القرية">
       </div>
 
+      <div class="field" id="cityField" style="display:none;">
+        <label for="cityName">اسم المدينة</label>
+        <input type="text" id="cityName" name="cityName" placeholder="اكتب اسم المدينة">
+      </div>
+
       <div class="field">
         <label for="stage">الصف الدراسي</label>
         <select id="stage" name="stage" required>
@@ -284,14 +289,28 @@
   const residenceSelect = document.getElementById('residenceType');
   const villageField = document.getElementById('villageField');
   const villageInput = document.getElementById('villageName');
+  const cityField = document.getElementById('cityField');
+  const cityInput = document.getElementById('cityName');
   residenceSelect.addEventListener('change', () => {
     if(residenceSelect.value === 'قرية'){
       villageField.style.display = 'block';
       villageInput.setAttribute('required', 'required');
+      cityField.style.display = 'none';
+      cityInput.removeAttribute('required');
+      cityInput.value = '';
+    } else if(residenceSelect.value === 'مدينة'){
+      cityField.style.display = 'block';
+      cityInput.setAttribute('required', 'required');
+      villageField.style.display = 'none';
+      villageInput.removeAttribute('required');
+      villageInput.value = '';
     } else {
       villageField.style.display = 'none';
       villageInput.removeAttribute('required');
       villageInput.value = '';
+      cityField.style.display = 'none';
+      cityInput.removeAttribute('required');
+      cityInput.value = '';
     }
   });
 
@@ -328,6 +347,7 @@
     const governorate = document.getElementById('governorate').value;
     const residenceType = document.getElementById('residenceType').value;
     const villageName = document.getElementById('villageName').value.trim();
+    const cityName = document.getElementById('cityName').value.trim();
     const stageSelectEl = document.getElementById('stage');
     const stage = stageSelectEl.value;
     const stagePage = stageSelectEl.selectedOptions[0] ? stageSelectEl.selectedOptions[0].dataset.page : null;
@@ -347,6 +367,10 @@
     }
     if(residenceType === 'قرية' && !villageName){
       showMsg('لازم تكتب اسم القرية', 'error');
+      return;
+    }
+    if(residenceType === 'مدينة' && !cityName){
+      showMsg('لازم تكتب اسم المدينة', 'error');
       return;
     }
     if(!stagePage){
@@ -377,6 +401,7 @@
         governorate,
         residenceType,
         villageName: residenceType === 'قرية' ? villageName : '',
+        cityName: residenceType === 'مدينة' ? cityName : '',
         stage,
         activeSession: sessionId,
         createdAt: new Date().toISOString()
