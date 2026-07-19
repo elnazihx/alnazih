@@ -7,6 +7,25 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
+    authDomain: "alnazih.firebaseapp.com",
+    projectId: "alnazih",
+    storageBucket: "alnazih.firebasestorage.app",
+    messagingSenderId: "318081681460",
+    appId: "1:318081681460:web:7526996a02a1f3ac5be261",
+    measurementId: "G-6L9S7XKBXF"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  window._firebase = { auth, signInWithEmailAndPassword };
+</script>
 <style>
   :root{
     --bg: #0f0b14;
@@ -173,18 +192,67 @@
 
       <a href="#" class="forgot">نسيت الباسورد؟</a>
 
-      <button type="submit" class="submit-btn">تسجيل الدخول</button>
+      <p id="formMsg" style="display:none; text-align:center; font-size:.88rem; font-weight:700; margin-bottom:16px; padding:10px 14px; border-radius:12px;"></p>
+
+      <button type="submit" class="submit-btn" id="submitBtn">تسجيل الدخول</button>
     </form>
 
     <p class="switch-link">لسه معملتش حساب؟ <a href="signup.html">إنشاء حساب جديد</a></p>
   </div>
 </div>
 
-<script>
-  document.getElementById('loginForm').addEventListener('submit', (e) => {
+<script type="module">
+  function showMsg(text, type){
+    const msg = document.getElementById('formMsg');
+    msg.textContent = text;
+    msg.style.display = 'block';
+    if(type === 'error'){
+      msg.style.background = 'rgba(220,50,50,0.12)';
+      msg.style.color = '#ff8a8a';
+      msg.style.border = '1px solid rgba(220,50,50,0.3)';
+    } else {
+      msg.style.background = 'rgba(60,180,100,0.12)';
+      msg.style.color = '#7be3a0';
+      msg.style.border = '1px solid rgba(60,180,100,0.3)';
+    }
+  }
+
+  function phoneToEmail(phone){
+    return phone.trim() + '@nazih-app.com';
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    // Backend connection will be added later
-    alert('تم استلام بياناتك! هيتم ربط النظام بالسيرفر قريب.');
+
+    const submitBtn = document.getElementById('submitBtn');
+    const phone = document.getElementById('phone').value.trim();
+    const password = document.getElementById('password').value;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'جاري تسجيل الدخول...';
+
+    try{
+      const { auth, signInWithEmailAndPassword } = window._firebase;
+      const email = phoneToEmail(phone);
+
+      await signInWithEmailAndPassword(auth, email, password);
+
+      showMsg('تم تسجيل الدخول بنجاح! هيتم تحويلك دلوقتي...', 'success');
+      setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+
+    }catch(err){
+      let text = 'حصل خطأ، حاول تاني';
+      if(err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found'){
+        text = 'رقم الهاتف أو الباسورد غلط';
+      } else if(err.code === 'auth/network-request-failed'){
+        text = 'مفيش اتصال بالإنترنت، تأكد من النت وحاول تاني';
+      } else if(err.code === 'auth/too-many-requests'){
+        text = 'محاولات كتير غلط، حاول تاني بعد شوية';
+      }
+      showMsg(text, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'تسجيل الدخول';
+    }
   });
 </script>
 
