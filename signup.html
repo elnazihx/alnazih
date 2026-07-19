@@ -214,9 +214,23 @@
       </div>
 
       <div class="field">
-        <label for="stage">المرحلة الدراسية</label>
+        <label for="residenceType">نوع السكن</label>
+        <select id="residenceType" name="residenceType" required>
+          <option value="" disabled selected>اختر نوع السكن</option>
+          <option value="مدينة">مدينة</option>
+          <option value="قرية">قرية</option>
+        </select>
+      </div>
+
+      <div class="field" id="villageField" style="display:none;">
+        <label for="villageName">اسم القرية</label>
+        <input type="text" id="villageName" name="villageName" placeholder="اكتب اسم القرية">
+      </div>
+
+      <div class="field">
+        <label for="stage">الصف الدراسي</label>
         <select id="stage" name="stage" required>
-          <option value="" disabled selected>اختر المرحلة الدراسية</option>
+          <option value="" disabled selected>اختر الصف الدراسي</option>
         </select>
       </div>
 
@@ -224,6 +238,10 @@
         <label for="password">الباسورد</label>
         <input type="password" id="password" name="password" placeholder="اكتب باسورد قوي" required>
       </div>
+
+      <p style="font-size:.78rem; color:#e8b25c; background:rgba(232,178,92,0.08); border:1px solid rgba(232,178,92,0.25); border-radius:12px; padding:12px 14px; margin-bottom:18px; line-height:1.7;">
+        ⚠️ تنبيه مهم: كل البيانات بتتراجع من إدارة المنصة. لو تبين إن فيها بيانات غلط أو غير حقيقية، هيتم حذف الحساب فورًا من غير إشعار مسبق.
+      </p>
 
       <p id="formMsg" style="display:none; text-align:center; font-size:.88rem; font-weight:700; margin-bottom:16px; padding:10px 14px; border-radius:12px;"></p>
 
@@ -243,8 +261,9 @@
   ];
 
   const stages = [
-    "الصف الأول الإعدادي","الصف الثاني الإعدادي","الصف الثالث الإعدادي",
-    "الصف الأول الثانوي","الصف الثاني الثانوي","الصف الثالث الثانوي"
+    { label: "الصف الأول الثانوي", page: "sec1.html" },
+    { label: "الصف الثاني الثانوي", page: "sec2.html" },
+    { label: "الصف الثالث الثانوي", page: "sec3.html" }
   ];
 
   const govSelect = document.getElementById('governorate');
@@ -257,8 +276,23 @@
   const stageSelect = document.getElementById('stage');
   stages.forEach(s => {
     const opt = document.createElement('option');
-    opt.value = s; opt.textContent = s;
+    opt.value = s.label; opt.textContent = s.label;
+    opt.dataset.page = s.page;
     stageSelect.appendChild(opt);
+  });
+
+  const residenceSelect = document.getElementById('residenceType');
+  const villageField = document.getElementById('villageField');
+  const villageInput = document.getElementById('villageName');
+  residenceSelect.addEventListener('change', () => {
+    if(residenceSelect.value === 'قرية'){
+      villageField.style.display = 'block';
+      villageInput.setAttribute('required', 'required');
+    } else {
+      villageField.style.display = 'none';
+      villageInput.removeAttribute('required');
+      villageInput.value = '';
+    }
   });
 
   function showMsg(text, type){
@@ -292,7 +326,11 @@
     const phone = document.getElementById('phone').value.trim();
     const guardianPhone = document.getElementById('guardian-phone').value.trim();
     const governorate = document.getElementById('governorate').value;
-    const stage = document.getElementById('stage').value;
+    const residenceType = document.getElementById('residenceType').value;
+    const villageName = document.getElementById('villageName').value.trim();
+    const stageSelectEl = document.getElementById('stage');
+    const stage = stageSelectEl.value;
+    const stagePage = stageSelectEl.selectedOptions[0] ? stageSelectEl.selectedOptions[0].dataset.page : null;
     const password = document.getElementById('password').value;
 
     if(!isValidEgyptianPhone(phone)){
@@ -301,6 +339,18 @@
     }
     if(!isValidEgyptianPhone(guardianPhone)){
       showMsg('رقم هاتف ولي الأمر غير صحيح', 'error');
+      return;
+    }
+    if(!residenceType){
+      showMsg('لازم تحدد نوع السكن (مدينة ولا قرية)', 'error');
+      return;
+    }
+    if(residenceType === 'قرية' && !villageName){
+      showMsg('لازم تكتب اسم القرية', 'error');
+      return;
+    }
+    if(!stagePage){
+      showMsg('لازم تختار الصف الدراسي', 'error');
       return;
     }
     if(password.length < 6){
@@ -325,13 +375,15 @@
         phone,
         guardianPhone,
         governorate,
+        residenceType,
+        villageName: residenceType === 'قرية' ? villageName : '',
         stage,
         activeSession: sessionId,
         createdAt: new Date().toISOString()
       });
 
       showMsg('تم إنشاء الحساب بنجاح! هيتم تحويلك دلوقتي...', 'success');
-      setTimeout(() => { window.location.href = 'main.html'; }, 1200);
+      setTimeout(() => { window.location.href = stagePage; }, 1200);
 
     }catch(err){
       let text = 'حصل خطأ، حاول تاني';
