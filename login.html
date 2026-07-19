@@ -13,7 +13,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
@@ -29,7 +29,7 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  window._firebase = { auth, signInWithEmailAndPassword, db, doc, setDoc };
+  window._firebase = { auth, signInWithEmailAndPassword, db, doc, setDoc, getDoc };
 </script>
 <style>
   :root{
@@ -237,20 +237,34 @@
     submitBtn.textContent = 'جاري تسجيل الدخول...';
 
     try{
-      const { auth, signInWithEmailAndPassword, db, doc, setDoc } = window._firebase;
+      const { auth, signInWithEmailAndPassword, db, doc, setDoc, getDoc } = window._firebase;
       const email = phoneToEmail(phone);
 
       const cred = await signInWithEmailAndPassword(auth, email, password);
 
       // Generate a fresh session ID for this device. Any other device
       // that had this same account open will detect the change and
-      // get signed out automatically (see main.html).
+      // get signed out automatically.
       const sessionId = crypto.randomUUID();
       localStorage.setItem('nazih_session_id', sessionId);
       await setDoc(doc(db, 'students', cred.user.uid), { activeSession: sessionId }, { merge: true });
 
+      // Figure out which stage page to send the student to.
+      const stagePages = {
+        'الصف الأول الثانوي': 'sec1.html',
+        'الصف الثاني الثانوي': 'sec2.html',
+        'الصف الثالث الثانوي': 'sec3.html'
+      };
+      let destination = 'sec1.html';
+      try{
+        const snap = await getDoc(doc(db, 'students', cred.user.uid));
+        if(snap.exists() && stagePages[snap.data().stage]){
+          destination = stagePages[snap.data().stage];
+        }
+      }catch(readErr){ /* fall back to default destination */ }
+
       showMsg('تم تسجيل الدخول بنجاح! هيتم تحويلك دلوقتي...', 'success');
-      setTimeout(() => { window.location.href = 'main.html'; }, 1000);
+      setTimeout(() => { window.location.href = destination; }, 1000);
 
     }catch(err){
       let text = 'حصل خطأ، حاول تاني';
