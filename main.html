@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>الصفحة الرئيسية | النزيه</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
@@ -11,7 +14,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
@@ -27,38 +30,65 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
+  let unsubscribeSnapshot = null;
+  let firstSnapshot = true;
+
   // Guard: if not logged in, redirect to login immediately.
-  onAuthStateChanged(auth, async (user) => {
+  onAuthStateChanged(auth, (user) => {
     if(!user){
+      if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
       window.location.replace('login.html');
       return;
     }
 
-    // Logged in: load student data and reveal the page.
-    try{
-      const snap = await getDoc(doc(db, 'students', user.uid));
+    const mySessionId = localStorage.getItem('nazih_session_id');
+    firstSnapshot = true;
+
+    // Real-time listener: watches this student's document. If another
+    // device logs into the same account, it writes a new activeSession
+    // value, which this listener picks up instantly and signs this
+    // device out.
+    unsubscribeSnapshot = onSnapshot(doc(db, 'students', user.uid), async (snap) => {
       const data = snap.exists() ? snap.data() : null;
+
+      if(!data){
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        document.getElementById('studentName').textContent = 'الطالب';
+        firstSnapshot = false;
+        return;
+      }
+
+      // Session check (skip on the very first read right after login,
+      // since this device just wrote that session ID itself).
+      if(!firstSnapshot && mySessionId && data.activeSession && data.activeSession !== mySessionId){
+        if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+        localStorage.removeItem('nazih_session_id');
+        await signOut(auth);
+        alert('تم تسجيل الدخول لحسابك من جهاز تاني، فتم تسجيل خروجك من هنا.');
+        window.location.replace('login.html');
+        return;
+      }
+
+      firstSnapshot = false;
 
       document.getElementById('loadingScreen').style.display = 'none';
       document.getElementById('mainContent').style.display = 'block';
-
-      if(data){
-        document.getElementById('studentName').textContent = data.fullname || 'الطالب';
-        document.getElementById('studentStage').textContent = data.stage || '';
-      } else {
-        document.getElementById('studentName').textContent = 'الطالب';
-      }
-    }catch(err){
+      document.getElementById('studentName').textContent = data.fullname || 'الطالب';
+      document.getElementById('studentStage').textContent = data.stage || '';
+    }, (err) => {
       document.getElementById('loadingScreen').style.display = 'none';
       document.getElementById('mainContent').style.display = 'block';
       document.getElementById('studentName').textContent = 'الطالب';
-    }
+    });
   });
 
   document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logoutBtn');
     if(logoutBtn){
       logoutBtn.addEventListener('click', async () => {
+        if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+        localStorage.removeItem('nazih_session_id');
         await signOut(auth);
         window.location.replace('login.html');
       });
