@@ -3,13 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>تسجيل الدخول | النزيه</title>
+<title>النزيه | تسجيل الدخول</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
@@ -23,8 +27,9 @@
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+  const db = getFirestore(app);
 
-  window._firebase = { auth, signInWithEmailAndPassword };
+  window._firebase = { auth, signInWithEmailAndPassword, db, doc, setDoc };
 </script>
 <style>
   :root{
@@ -232,10 +237,17 @@
     submitBtn.textContent = 'جاري تسجيل الدخول...';
 
     try{
-      const { auth, signInWithEmailAndPassword } = window._firebase;
+      const { auth, signInWithEmailAndPassword, db, doc, setDoc } = window._firebase;
       const email = phoneToEmail(phone);
 
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+
+      // Generate a fresh session ID for this device. Any other device
+      // that had this same account open will detect the change and
+      // get signed out automatically (see main.html).
+      const sessionId = crypto.randomUUID();
+      localStorage.setItem('nazih_session_id', sessionId);
+      await setDoc(doc(db, 'students', cred.user.uid), { activeSession: sessionId }, { merge: true });
 
       showMsg('تم تسجيل الدخول بنجاح! هيتم تحويلك دلوقتي...', 'success');
       setTimeout(() => { window.location.href = 'main.html'; }, 1000);
