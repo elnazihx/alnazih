@@ -7,6 +7,27 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
+    authDomain: "alnazih.firebaseapp.com",
+    projectId: "alnazih",
+    storageBucket: "alnazih.firebasestorage.app",
+    messagingSenderId: "318081681460",
+    appId: "1:318081681460:web:7526996a02a1f3ac5be261",
+    measurementId: "G-6L9S7XKBXF"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  window._firebase = { auth, db, createUserWithEmailAndPassword, doc, setDoc };
+</script>
 <style>
   :root{
     --bg: #0f0b14;
@@ -201,14 +222,16 @@
         <input type="password" id="password" name="password" placeholder="اكتب باسورد قوي" required>
       </div>
 
-      <button type="submit" class="submit-btn">إنشاء الحساب</button>
+      <p id="formMsg" style="display:none; text-align:center; font-size:.88rem; font-weight:700; margin-bottom:16px; padding:10px 14px; border-radius:12px;"></p>
+
+      <button type="submit" class="submit-btn" id="submitBtn">إنشاء الحساب</button>
     </form>
 
     <p class="switch-link">عندك حساب بالفعل؟ <a href="login.html">تسجيل الدخول</a></p>
   </div>
 </div>
 
-<script>
+<script type="module">
   const governorates = [
     "القاهرة","الجيزة","الإسكندرية","الدقهلية","البحر الأحمر","البحيرة","الفيوم",
     "الغربية","الإسماعيلية","المنوفية","المنيا","القليوبية","الوادي الجديد","السويس",
@@ -235,10 +258,87 @@
     stageSelect.appendChild(opt);
   });
 
-  document.getElementById('signupForm').addEventListener('submit', (e) => {
+  function showMsg(text, type){
+    const msg = document.getElementById('formMsg');
+    msg.textContent = text;
+    msg.style.display = 'block';
+    if(type === 'error'){
+      msg.style.background = 'rgba(220,50,50,0.12)';
+      msg.style.color = '#ff8a8a';
+      msg.style.border = '1px solid rgba(220,50,50,0.3)';
+    } else {
+      msg.style.background = 'rgba(60,180,100,0.12)';
+      msg.style.color = '#7be3a0';
+      msg.style.border = '1px solid rgba(60,180,100,0.3)';
+    }
+  }
+
+  function phoneToEmail(phone){
+    return phone.trim() + '@nazih-app.com';
+  }
+
+  function isValidEgyptianPhone(phone){
+    return /^01[0-2,5]{1}[0-9]{8}$/.test(phone.trim());
+  }
+
+  document.getElementById('signupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    // Backend connection will be added later
-    alert('تم استلام بياناتك! هيتم ربط النظام بالسيرفر قريب.');
+
+    const submitBtn = document.getElementById('submitBtn');
+    const fullname = document.getElementById('fullname').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const guardianPhone = document.getElementById('guardian-phone').value.trim();
+    const governorate = document.getElementById('governorate').value;
+    const stage = document.getElementById('stage').value;
+    const password = document.getElementById('password').value;
+
+    if(!isValidEgyptianPhone(phone)){
+      showMsg('رقم الهاتف غير صحيح، لازم يبدأ بـ 01 ويكون 11 رقم', 'error');
+      return;
+    }
+    if(!isValidEgyptianPhone(guardianPhone)){
+      showMsg('رقم هاتف ولي الأمر غير صحيح', 'error');
+      return;
+    }
+    if(password.length < 6){
+      showMsg('الباسورد لازم يكون 6 حروف أو أرقام على الأقل', 'error');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'جاري إنشاء الحساب...';
+
+    try{
+      const { auth, db, createUserWithEmailAndPassword, doc, setDoc } = window._firebase;
+      const email = phoneToEmail(phone);
+
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+
+      await setDoc(doc(db, 'students', cred.user.uid), {
+        fullname,
+        phone,
+        guardianPhone,
+        governorate,
+        stage,
+        createdAt: new Date().toISOString()
+      });
+
+      showMsg('تم إنشاء الحساب بنجاح! هيتم تحويلك دلوقتي...', 'success');
+      setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+
+    }catch(err){
+      let text = 'حصل خطأ، حاول تاني';
+      if(err.code === 'auth/email-already-in-use'){
+        text = 'رقم الهاتف ده مسجل بحساب قبل كده';
+      } else if(err.code === 'auth/weak-password'){
+        text = 'الباسورد ضعيف، اختار باسورد أقوى';
+      } else if(err.code === 'auth/network-request-failed'){
+        text = 'مفيش اتصال بالإنترنت، تأكد من النت وحاول تاني';
+      }
+      showMsg(text, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'إنشاء الحساب';
+    }
   });
 </script>
 
