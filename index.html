@@ -35,14 +35,30 @@
     'الصف الثالث الثانوي': 'sec3.html'
   };
 
+  // Lock scrolling while the splash gate is up, and make sure it never
+  // stays stuck (e.g. slow/lost network) for more than a few seconds.
+  document.documentElement.classList.add('auth-gate-active');
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.classList.add('auth-gate-active');
+  });
+
+  let gateHidden = false;
+  function hideGate(){
+    if(gateHidden) return;
+    gateHidden = true;
+    const gate = document.getElementById('authGate');
+    if(gate) gate.style.display = 'none';
+    document.documentElement.classList.remove('auth-gate-active');
+    document.body.classList.remove('auth-gate-active');
+  }
+  setTimeout(hideGate, 4000);
+
   // If the student already has an active logged-in session on this
   // device, skip the landing page and take them straight to their
   // stage page. Otherwise reveal the normal landing page.
   onAuthStateChanged(auth, async (user) => {
-    const gate = document.getElementById('authGate');
-
     if(!user){
-      if(gate) gate.style.display = 'none';
+      hideGate();
       return;
     }
 
@@ -50,7 +66,7 @@
     if(!mySessionId){
       // Signed in with Firebase but no local session marker (e.g. a
       // stale/foreign auth state) — treat as logged out on this device.
-      if(gate) gate.style.display = 'none';
+      hideGate();
       return;
     }
 
@@ -62,7 +78,7 @@
         // Make sure this device's session is still the active one
         // before auto-redirecting into the account.
         if(data.activeSession && data.activeSession !== mySessionId){
-          if(gate) gate.style.display = 'none';
+          hideGate();
           return;
         }
 
@@ -72,22 +88,38 @@
       }
     }catch(err){ /* fall through to showing the landing page */ }
 
-    if(gate) gate.style.display = 'none';
+    hideGate();
   });
 </script>
 <style>
   #authGate{
     position:fixed; inset:0; z-index:9999;
-    background:#0f0b14;
+    background: var(--bg);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:22px;
+    overflow:hidden;
+  }
+  #authGate::before{
+    content:'';
+    position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse 700px 500px at 85% -5%, rgba(190,40,90,0.22), transparent 60%),
+      radial-gradient(ellipse 600px 500px at 10% 15%, rgba(211,117,164,0.10), transparent 55%);
+    pointer-events:none;
+  }
+  body.light-mode #authGate::before{
+    background:
+      radial-gradient(ellipse 700px 500px at 85% -5%, rgba(190,40,90,0.10), transparent 60%),
+      radial-gradient(ellipse 600px 500px at 10% 15%, rgba(211,117,164,0.10), transparent 55%);
   }
   #authGate .splash-logo{
+    position:relative; z-index:1;
     width:96px; height:96px;
     display:block;
     filter: drop-shadow(0 10px 26px rgba(190,40,90,0.4));
   }
   #authGate .spinner{
+    position:relative; z-index:1;
     width:34px; height:34px;
     border:3px solid rgba(211,117,164,0.25);
     border-top-color:#d3488a;
@@ -95,6 +127,8 @@
     animation:authGateSpin .8s linear infinite;
   }
   @keyframes authGateSpin{ to{ transform:rotate(360deg); } }
+  html.auth-gate-active,
+  body.auth-gate-active{ overflow:hidden; height:100vh; }
   :root{
     --bg: #0f0b14;
     --bg-soft: #150f1c;
