@@ -895,7 +895,9 @@
   </div>
 </footer>
 
-<script>
+<script type="module">
+  import { COURSES } from "./courses-data.js";
+
   // Header scroll state
   const header = document.getElementById('siteHeader');
   if(header){
@@ -920,28 +922,11 @@
     }
   }catch(err){ /* localStorage may be unavailable */ }
 
-  // Courses data - 12 courses, images kors1.png..kors12.png
-  // Each course has a stable id used across the site (enroll page, student
-  // records, admin panel) — do not change existing ids once students
-  // start enrolling, or their access will break.
-  const courses = [
-    { id: "course1",  title: "أساسيات الكيمياء - أولى ثانوي", price: "150 جنيه" },
-    { id: "course2",  title: "الكيمياء العضوية - تانية ثانوي", price: "180 جنيه" },
-    { id: "course3",  title: "الكيمياء غير العضوية - تالتة ثانوي", price: "220 جنيه" },
-    { id: "course4",  title: "التفاعلات الكيميائية", price: "150 جنيه" },
-    { id: "course5",  title: "الروابط الكيميائية", price: "150 جنيه" },
-    { id: "course6",  title: "الجدول الدوري وخواص العناصر", price: "150 جنيه" },
-    { id: "course7",  title: "الحسابات الكيميائية", price: "180 جنيه" },
-    { id: "course8",  title: "الكيمياء الكهربية", price: "180 جنيه" },
-    { id: "course9",  title: "الاتزان الكيميائي", price: "180 جنيه" },
-    { id: "course10", title: "الكيمياء النووية", price: "150 جنيه" },
-    { id: "course11", title: "البوليمرات والمركبات العضوية", price: "180 جنيه" },
-    { id: "course12", title: "مراجعة نهائية شاملة", price: "250 جنيه" },
-  ];
-
+  // Courses data comes from courses-data.js (single source of truth
+  // shared with enroll.html and admin.html) - images kors1.png..kors12.png
   const grid = document.getElementById('coursesGrid');
   if(grid){
-    courses.forEach((c, i) => {
+    COURSES.forEach((c, i) => {
       const n = i + 1;
       const card = document.createElement('div');
       card.className = 'course-card reveal';
