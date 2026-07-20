@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم | النزيه</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import { getFirestore, collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
+    authDomain: "alnazih.firebaseapp.com",
+    projectId: "alnazih",
+    storageBucket: "alnazih.firebasestorage.app",
+    messagingSenderId: "318081681460",
+    appId: "1:318081681460:web:7526996a02a1f3ac5be261",
+    measurementId: "G-6L9S7XKBXF"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Only this phone number (converted to the same email format used by
+  // login/signup) is allowed into this panel. This is a UI-level check
+  // only — the real protection MUST also exist in Firestore Security
+  // Rules, since anyone can view this page's source.
+  const ADMIN_PHONE = "01019569018";
+  const ADMIN_EMAIL = ADMIN_PHONE + "@nazih-app.com";
+
+  let unsubscribeList = null;
+
+  function showMsg(text, type){
+    const msg = document.getElementById('loginMsg');
+    msg.textContent = text;
+    msg.style.display = 'block';
+    if(type === 'error'){
+      msg.style.background = 'rgba(220,50,50,0.12)';
+      msg.style.color = '#ff8a8a';
+      msg.style.border = '1px solid rgba(220,50,50,0.3)';
+    } else {
+      msg.style.background = 'rgba(60,180,100,0.12)';
+      msg.style.color = '#7be3a0';
+      msg.style.border = '1px solid rgba(60,180,100,0.3)';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('loginSubmitBtn');
+      const phone = document.getElementById('adminPhone').value.trim();
+      const password = document.getElementById('adminPassword').value;
+
+      if(phone !== ADMIN_PHONE){
+        showMsg('مفيش صلاحية دخول بالرقم ده', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'جاري الدخول...';
+
+      try{
+        await signInWithEmailAndPassword(auth, ADMIN_EMAIL, password);
+      }catch(err){
+        let text = 'حصل خطأ، حاول تاني';
+        if(err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found'){
+          text = 'الباسورد غلط';
+        } else if(err.code === 'auth/network-request-failed'){
+          text = 'مفيش اتصال بالإنترنت';
+        }
+        showMsg(text, 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'دخول';
+      }
+    });
+
+    document.getElementById('adminLogoutBtn').addEventListener('click', async () => {
+      if(unsubscribeList){ unsubscribeList(); unsubscribeList = null; }
+      await signOut(auth);
+    });
+  });
+
+  onAuthStateChanged(auth, (user) => {
+    const isAdmin = user && user.email === ADMIN_EMAIL;
+
+    document.getElementById('loginScreen').style.display = isAdmin ? 'none' : 'flex';
+    document.getElementById('adminPanel').style.display = isAdmin ? 'block' : 'none';
+
+    if(!isAdmin){
+      if(unsubscribeList){ unsubscribeList(); unsubscribeList = null; }
+      const submitBtn = document.getElementById('loginSubmitBtn');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'دخول';
+      return;
+    }
+
+    const q = query(
+      collection(db, 'enrollments'),
+      where('status', '==', 'pending'),
+      orderBy('createdAt', 'desc')
+    );
+
+    unsubscribeList = onSnapshot(q, (snap) => {
+      renderRequests(snap.docs);
+    }, (err) => {
+      document.getElementById('requestsBody').innerHTML =
+        '<tr><td colspan="6" class="empty-cell">حصل خطأ في تحميل الطلبات</td></tr>';
+    });
+  });
+
+  function renderRequests(docs){
+    const tbody = document.getElementById('requestsBody');
+    document.getElementById('pendingCount').textContent = docs.length;
+
+    if(docs.length === 0){
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">مفيش طلبات معلّقة دلوقتي 🎉</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+    docs.forEach(d => {
+      const data = d.data();
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(data.studentName || '—')}</td>
+        <td class="ltr">${escapeHtml(data.studentPhone || '—')}</td>
+        <td>${escapeHtml(data.courseTitle || '—')}</td>
+        <td>${escapeHtml(data.price || '—')}</td>
+        <td class="ltr">${escapeHtml(data.transactionRef || '—')}<br><span class="sub-note">من: ${escapeHtml(data.senderPhone || '—')}</span></td>
+        <td class="actions">
+          <button class="btn-approve" data-id="${d.id}">✅ تفعيل</button>
+          <button class="btn-reject" data-id="${d.id}">❌ رفض</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('.btn-approve').forEach(btn => {
+      btn.addEventListener('click', () => handleDecision(btn, 'approved'));
+    });
+    tbody.querySelectorAll('.btn-reject').forEach(btn => {
+      btn.addEventListener('click', () => handleDecision(btn, 'rejected'));
+    });
+  }
+
+  async function handleDecision(btn, decision){
+    const enrollmentId = btn.dataset.id;
+    const row = btn.closest('tr');
+    const buttons = row.querySelectorAll('button');
+    buttons.forEach(b => b.disabled = true);
+
+    try{
+      const enrollmentRef = doc(db, 'enrollments', enrollmentId);
+      const enrollmentSnap = await getDoc(enrollmentRef);
+      if(!enrollmentSnap.exists()) return;
+      const data = enrollmentSnap.data();
+
+      if(decision === 'approved'){
+        const studentRef = doc(db, 'students', data.studentId);
+        await updateDoc(studentRef, {
+          enrolledCourses: arrayUnion(data.courseId)
+        });
+      }
+
+      await updateDoc(enrollmentRef, { status: decision });
+    }catch(err){
+      alert('حصل خطأ، حاول تاني');
+      buttons.forEach(b => b.disabled = false);
+    }
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
+<style>
+  :root{
+    --bg: #0f0b14;
+    --card: #1a1424;
+    --line: rgba(211,117,164,0.16);
+    --primary: #be285a;
+    --primary-light: #d3488a;
+    --accent: #d375a4;
+    --accent-soft: rgba(211,117,164,0.1);
+    --text: #f5e9ee;
+    --text-dim: #cbb9c4;
+    --text-mute: #8b7a94;
+    --gold: #e8b25c;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family:'Almarai', sans-serif;
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 700px 500px at 85% -5%, rgba(190,40,90,0.22), transparent 60%),
+      radial-gradient(ellipse 600px 500px at 10% 90%, rgba(211,117,164,0.12), transparent 55%);
+    pointer-events:none; z-index:0;
+  }
+  h1,h2{ font-family:'Cairo', sans-serif; }
+  a{ text-decoration:none; color:inherit; }
+  input{ font-family:'Almarai', sans-serif; }
+  .ltr{ direction:ltr; text-align:right; }
+
+  /* ===== Login screen ===== */
+  #loginScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:40px 20px; position:relative; z-index:1;
+  }
+  .login-card{
+    width:100%; max-width:400px;
+    background: var(--card);
+    border:1px solid var(--line);
+    border-radius:24px;
+    padding:34px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  }
+  .login-card h1{ font-size:1.3rem; text-align:center; margin-bottom:6px; }
+  .login-card .sub{ text-align:center; color:var(--text-mute); font-size:.88rem; margin-bottom:26px; }
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:.85rem; font-weight:700; color:var(--text-dim); margin-bottom:8px; }
+  .field input{
+    width:100%; background:rgba(255,255,255,0.03); border:1px solid rgba(211,117,164,0.18);
+    color:var(--text); padding:12px 16px; border-radius:14px; font-size:.95rem; outline:none;
+  }
+  .field input:focus{ border-color:var(--primary-light); background:rgba(211,117,164,0.06); }
+  .submit-btn{
+    width:100%; background:linear-gradient(135deg,var(--primary),var(--primary-light));
+    color:#fff; font-family:'Cairo',sans-serif; font-weight:800; font-size:1rem;
+    padding:13px; border:none; border-radius:14px; margin-top:6px; cursor:pointer;
+  }
+  #loginMsg{ display:none; text-align:center; font-size:.85rem; font-weight:700; margin-bottom:14px; padding:10px 14px; border-radius:12px; }
+
+  /* ===== Admin panel ===== */
+  #adminPanel{ display:none; position:relative; z-index:1; padding:30px 20px 60px; max-width:1100px; margin:0 auto; }
+  .panel-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; flex-wrap:wrap; gap:12px; }
+  .panel-header h1{ font-size:1.3rem; }
+  .panel-header .pending-badge{
+    background:var(--accent-soft); border:1px solid rgba(211,117,164,0.25);
+    color:var(--accent); font-weight:700; font-size:.85rem; padding:6px 14px; border-radius:999px;
+  }
+  .logout-btn{
+    background:rgba(255,255,255,0.05); border:1px solid var(--line); color:var(--text-dim);
+    padding:9px 18px; border-radius:12px; font-size:.85rem; font-weight:700; cursor:pointer;
+  }
+
+  .table-wrap{
+    background:var(--card); border:1px solid var(--line); border-radius:20px;
+    overflow-x:auto; box-shadow:0 12px 40px rgba(0,0,0,0.3);
+  }
+  table{ width:100%; border-collapse:collapse; min-width:700px; }
+  thead th{
+    text-align:right; font-size:.82rem; color:var(--text-mute); font-weight:700;
+    padding:14px 16px; border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  tbody td{
+    padding:14px 16px; font-size:.9rem; border-bottom:1px solid rgba(211,117,164,0.08);
+    vertical-align:middle;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  .sub-note{ color:var(--text-mute); font-size:.78rem; }
+  .empty-cell{ text-align:center; padding:40px 16px; color:var(--text-mute); }
+
+  .actions{ display:flex; gap:8px; white-space:nowrap; }
+  .btn-approve, .btn-reject{
+    font-family:'Almarai',sans-serif; font-weight:700; font-size:.82rem;
+    padding:8px 14px; border-radius:10px; border:none; cursor:pointer;
+  }
+  .btn-approve{ background:rgba(60,180,100,0.15); color:#7be3a0; }
+  .btn-approve:hover{ background:rgba(60,180,100,0.28); }
+  .btn-reject{ background:rgba(220,50,50,0.12); color:#ff8a8a; }
+  .btn-reject:hover{ background:rgba(220,50,50,0.22); }
+  button:disabled{ opacity:.5; cursor:default; }
+
+  @media (max-width:600px){
+    .panel-header{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>لوحة تحكم النزيه</h1>
+    <p class="sub">دخول مخصص للأدمن فقط</p>
+
+    <form id="adminLoginForm">
+      <div class="field">
+        <label for="adminPhone">رقم الهاتف</label>
+        <input type="tel" id="adminPhone" name="adminPhone" placeholder="01xxxxxxxxx" required>
+      </div>
+      <div class="field">
+        <label for="adminPassword">الباسورد</label>
+        <input type="password" id="adminPassword" name="adminPassword" placeholder="اكتب الباسورد بتاعك" required>
+      </div>
+
+      <p id="loginMsg"></p>
+
+      <button type="submit" class="submit-btn" id="loginSubmitBtn">دخول</button>
+    </form>
+  </div>
+</div>
+
+<div id="adminPanel">
+  <div class="panel-header">
+    <div>
+      <h1>طلبات الاشتراك المعلّقة</h1>
+      <span class="pending-badge"><span id="pendingCount">0</span> طلب معلّق</span>
+    </div>
+    <button class="logout-btn" id="adminLogoutBtn">تسجيل الخروج</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>الطالب</th>
+          <th>رقم الطالب</th>
+          <th>الكورس</th>
+          <th>السعر</th>
+          <th>رقم العملية</th>
+          <th>إجراء</th>
+        </tr>
+      </thead>
+      <tbody id="requestsBody">
+        <tr><td colspan="6" class="empty-cell">جاري التحميل...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>
