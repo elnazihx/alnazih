@@ -241,7 +241,11 @@
   }
 
   @media (max-width:400px){
-    .header-actions a.btn-ghost{ display:none; }
+    .header-actions{ gap:4px; }
+    .header-actions .btn{
+      padding:7px 10px;
+      font-size:.72rem;
+    }
   }
 
   .btn{
@@ -482,8 +486,17 @@
 
   @media (max-width: 480px){
     .hero{ padding:140px 0 70px; }
-    .hero .wrap{ grid-template-columns: 0.9fr 1.3fr; }
+    .hero .wrap{
+      grid-template-columns: 1fr;
+      text-align:center;
+    }
+    .hero-visual{ order:1; margin-bottom:8px; }
+    .hero-text{ order:2; }
     .hero h1{ font-size:1.4rem; }
+    .hero p{ margin-inline:auto; }
+    .subscribe-box{ display:flex; width:100%; }
+    .subscribe-box .btn{ width:100%; text-align:center; }
+    .logo-halo{ width:min(220px, 55vw); }
   }
 
   /* ============ SECTION HEADINGS ============ */
@@ -740,7 +753,6 @@
 <section class="hero">
   <div class="wrap">
     <div class="hero-text">
-      <span class="eyebrow">كيمياء الثانوية العامة</span>
       <h1>النزيه منصتك الأولى لتعلم<br>وفهم <span class="hl">الكيمياء<svg class="hl-swash" viewBox="0 0 220 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2 12C40 2 80 2 110 8C140 14 180 14 218 6" stroke="url(#swashGrad)" stroke-width="3" stroke-linecap="round"/><defs><linearGradient id="swashGrad" x1="0" y1="0" x2="220" y2="0"><stop offset="0" stop-color="#d3488a"/><stop offset="1" stop-color="#e8b25c"/></linearGradient></defs></svg></span> بأسلوب<br>بسيط وممتع</h1>
       <p>اهلاً بيك في بيتك التاني! سواء كنت في أولى، تانية، أو تالتة ثانوي، هنا هتلاقي كل اللي تحتاجه علشان تتفوق في الكيمياء، وتفهمها صح، وتطبقها بسهولة.</p>
       <div class="subscribe-box">
