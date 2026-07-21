@@ -908,7 +908,27 @@
 </footer>
 
 <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import { COURSES } from "./courses-data.js";
+  import { recordEnrollIntent } from "./enroll-intent.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
+    authDomain: "alnazih.firebaseapp.com",
+    projectId: "alnazih",
+    storageBucket: "alnazih.firebasestorage.app",
+    messagingSenderId: "318081681460",
+    appId: "1:318081681460:web:7526996a02a1f3ac5be261",
+    measurementId: "G-6L9S7XKBXF"
+  };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  let isLoggedIn = false;
+  onAuthStateChanged(auth, (user) => {
+    isLoggedIn = !!user;
+  });
 
   // Header scroll state
   const header = document.getElementById('siteHeader');
@@ -936,6 +956,11 @@
 
   // Courses data comes from courses-data.js (single source of truth
   // shared with enroll.html and admin.html) - images kors1.png, kors2.png, kors3.png
+  //
+  // Clicking "enroll" while logged out records the intent (which course
+  // they wanted) and sends them to signup instead of straight to
+  // enroll.html — signup.html then links that intent to their new
+  // account, and their stage page offers to resume it afterwards.
   const grid = document.getElementById('coursesGrid');
   if(grid){
     COURSES.forEach((c, i) => {
@@ -954,11 +979,20 @@
           <p class="course-desc">مناسب للمرحلة الدراسية المحددة</p>
           <div class="course-foot">
             <span class="course-price">${c.price}</span>
-            <a href="enroll.html?course=${c.id}" class="course-cta">تفاصيل الكورس</a>
+            <a href="enroll.html?course=${c.id}" class="course-cta" data-course-id="${c.id}">تفاصيل الكورس</a>
           </div>
         </div>
       `;
       grid.appendChild(card);
+
+      const cta = card.querySelector('.course-cta');
+      cta.addEventListener('click', async (e) => {
+        if(isLoggedIn) return; // let the normal link to enroll.html happen
+        e.preventDefault();
+        cta.style.opacity = '.7';
+        await recordEnrollIntent(app, c.id);
+        window.location.href = 'signup.html';
+      });
     });
   }
 
