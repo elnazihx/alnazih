@@ -14,6 +14,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import { linkIntentToStudent } from "./enroll-intent.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
@@ -29,7 +30,7 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  window._firebase = { auth, db, createUserWithEmailAndPassword, doc, setDoc };
+  window._firebase = { app, auth, db, createUserWithEmailAndPassword, doc, setDoc, linkIntentToStudent };
 </script>
 <style>
   :root{
@@ -386,7 +387,7 @@
     submitBtn.textContent = 'جاري إنشاء الحساب...';
 
     try{
-      const { auth, db, createUserWithEmailAndPassword, doc, setDoc } = window._firebase;
+      const { app, auth, db, createUserWithEmailAndPassword, doc, setDoc, linkIntentToStudent } = window._firebase;
       const email = phoneToEmail(phone);
 
       const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -406,6 +407,11 @@
         activeSession: sessionId,
         createdAt: new Date().toISOString()
       });
+
+      // If this visitor clicked "enroll" on a course before creating an
+      // account, link that intent to their new account now so their
+      // stage page can offer to resume it.
+      await linkIntentToStudent(app, cred.user.uid);
 
       showMsg('تم إنشاء الحساب بنجاح! هيتم تحويلك دلوقتي...', 'success');
       setTimeout(() => { window.location.href = stagePage; }, 1200);
