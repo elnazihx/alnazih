@@ -114,6 +114,7 @@
     unsubscribeList = onSnapshot(q, (snap) => {
       renderRequests(snap.docs);
     }, (err) => {
+      console.error('enrollments listener error:', err);
       document.getElementById('requestsBody').innerHTML =
         '<tr><td colspan="6" class="empty-cell">حصل خطأ في تحميل الطلبات</td></tr>';
     });
@@ -205,6 +206,7 @@
     unsubscribeLessons = onSnapshot(q, (snap) => {
       renderLessons(snap.docs);
     }, (err) => {
+      console.error('course_videos listener error:', err);
       document.getElementById('lessonsBody').innerHTML =
         '<tr><td colspan="4" class="empty-cell">حصل خطأ في تحميل الدروس</td></tr>';
     });
