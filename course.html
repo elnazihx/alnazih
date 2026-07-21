@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>محتوى الكورس | النزيه</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, collection, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import { getCourseById } from "./courses-data.js";
+  import { extractYouTubeId } from "./youtube-utils.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
+    authDomain: "alnazih.firebaseapp.com",
+    projectId: "alnazih",
+    storageBucket: "alnazih.firebasestorage.app",
+    messagingSenderId: "318081681460",
+    appId: "1:318081681460:web:7526996a02a1f3ac5be261",
+    measurementId: "G-6L9S7XKBXF"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const params = new URLSearchParams(window.location.search);
+  const courseId = params.get('id');
+  const course = courseId ? getCourseById(courseId) : null;
+
+  function showState(state){
+    ['loadingState','notFound','loggedOutState','notEnrolledState','lessonsState'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = (id === state) ? 'block' : 'none';
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if(!course){
+      showState('notFound');
+      return;
+    }
+    document.getElementById('courseTitle').textContent = course.title;
+    document.title = course.title + ' | النزيه';
+  });
+
+  onAuthStateChanged(auth, async (user) => {
+    if(!course) return;
+
+    if(!user){
+      showState('loggedOutState');
+      return;
+    }
+
+    try{
+      const studentSnap = await getDoc(doc(db, 'students', user.uid));
+      const studentData = studentSnap.exists() ? studentSnap.data() : null;
+      const enrolled = studentData && Array.isArray(studentData.enrolledCourses)
+        ? studentData.enrolledCourses
+        : [];
+
+      if(!enrolled.includes(course.id)){
+        showState('notEnrolledState');
+        return;
+      }
+
+      // Enrolled — load the lesson list for this course.
+      const q = query(
+        collection(db, 'course_videos'),
+        where('courseId', '==', course.id),
+        orderBy('order', 'asc')
+      );
+      const snap = await getDocs(q);
+      renderLessons(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      showState('lessonsState');
+    }catch(err){
+      showState('notEnrolledState');
+    }
+  });
+
+  function renderLessons(lessons){
+    const list = document.getElementById('lessonsList');
+    if(lessons.length === 0){
+      list.innerHTML = '<p class="empty-note">لسه مفيش دروس مضافة للكورس ده، تابعنا هنضيفها قريب.</p>';
+      return;
+    }
+
+    list.innerHTML = '';
+    lessons.forEach((lesson) => {
+      const videoId = extractYouTubeId(lesson.youtube || '');
+      const thumb = videoId
+        ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+        : '';
+
+      const card = document.createElement('a');
+      card.href = `watch.html?course=${encodeURIComponent(course.id)}&video=${encodeURIComponent(lesson.id)}`;
+      card.className = 'lesson-card';
+      card.innerHTML = `
+        <div class="lesson-thumb">
+          ${thumb ? `<img src="${thumb}" alt="${lesson.title || ''}">` : ''}
+          <div class="lesson-play">▶</div>
+        </div>
+        <div class="lesson-info">
+          <h3>${lesson.title || 'درس بدون اسم'}</h3>
+          ${lesson.pdfUrl ? '<span class="lesson-pdf-tag">📄 مذاكرة مرفقة</span>' : ''}
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  }
+</script>
+<style>
+  :root{
+    --bg: #0f0b14;
+    --card: #1a1424;
+    --line: rgba(211,117,164,0.16);
+    --primary: #be285a;
+    --primary-light: #d3488a;
+    --accent: #d375a4;
+    --accent-soft: rgba(211,117,164,0.1);
+    --text: #f5e9ee;
+    --text-dim: #cbb9c4;
+    --text-mute: #8b7a94;
+    --gold: #e8b25c;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family:'Almarai', sans-serif;
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 700px 500px at 85% -5%, rgba(190,40,90,0.22), transparent 60%),
+      radial-gradient(ellipse 600px 500px at 10% 90%, rgba(211,117,164,0.12), transparent 55%);
+    pointer-events:none; z-index:0;
+  }
+  h1,h2,h3{ font-family:'Cairo', sans-serif; }
+  a{ text-decoration:none; color:inherit; }
+
+  .page{
+    position:relative; z-index:1;
+    max-width:720px;
+    margin:0 auto;
+    padding:50px 24px 80px;
+  }
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px;
+    color: var(--text-mute);
+    font-size:.9rem; font-weight:700;
+    margin-bottom:24px;
+    transition: color .2s ease;
+  }
+  .back-link:hover{ color: var(--accent); }
+
+  h1.page-title{ font-size:1.4rem; margin-bottom:26px; }
+
+  .status-box{
+    text-align:center; padding:50px 20px;
+    background: var(--card);
+    border:1px solid var(--line);
+    border-radius:24px;
+  }
+  .status-box .icon{ font-size:2.4rem; margin-bottom:14px; }
+  .status-box h2{ font-size:1.15rem; margin-bottom:10px; }
+  .status-box p{ color:var(--text-mute); font-size:.92rem; line-height:1.9; margin-bottom:20px; }
+  .status-box .btn-link{
+    display:inline-block;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color:#fff;
+    font-weight:700; font-size:.9rem;
+    padding:11px 26px; border-radius:999px;
+  }
+
+  #notFound, #loggedOutState, #notEnrolledState, #lessonsState{ display:none; }
+  #loadingState{ display:block; }
+
+  .lessons-list{ display:flex; flex-direction:column; gap:14px; }
+  .lesson-card{
+    display:flex; align-items:center; gap:14px;
+    background: var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:10px;
+    transition: border-color .2s ease, transform .2s ease;
+  }
+  .lesson-card:hover{ border-color:rgba(211,117,164,0.4); transform:translateY(-2px); }
+  .lesson-thumb{
+    position:relative;
+    flex:0 0 120px;
+    aspect-ratio:16/9;
+    border-radius:12px;
+    overflow:hidden;
+    background: linear-gradient(135deg, rgba(190,40,90,0.18), rgba(211,117,164,0.06));
+  }
+  .lesson-thumb img{ width:100%; height:100%; object-fit:cover; }
+  .lesson-play{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(10,7,13,0.28);
+    color:#fff; font-size:1.1rem;
+  }
+  .lesson-info h3{ font-size:.96rem; font-weight:700; margin-bottom:6px; }
+  .lesson-pdf-tag{
+    display:inline-block;
+    font-size:.76rem; font-weight:700;
+    color: var(--gold);
+    background: rgba(232,178,92,0.1);
+    border:1px solid rgba(232,178,92,0.25);
+    padding:3px 10px; border-radius:999px;
+  }
+  .empty-note{ text-align:center; color:var(--text-mute); font-size:.92rem; padding:30px 0; }
+
+  @media (max-width:480px){
+    .lesson-thumb{ flex-basis:96px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <a href="index.html" class="back-link">→ العودة للصفحة الرئيسية</a>
+
+  <div id="loadingState">
+    <div class="status-box"><p>جاري التحميل...</p></div>
+  </div>
+
+  <div id="notFound">
+    <div class="status-box">
+      <div class="icon">❓</div>
+      <h2>الكورس ده مش موجود</h2>
+      <p>ممكن يكون الرابط غلط.</p>
+      <a href="index.html" class="btn-link">الرجوع للرئيسية</a>
+    </div>
+  </div>
+
+  <div id="loggedOutState">
+    <div class="status-box">
+      <div class="icon">🔒</div>
+      <h2>لازم تسجل دخول الأول</h2>
+      <p>سجّل دخولك عشان تقدر تشوف محتوى الكورس.</p>
+      <a href="login.html" class="btn-link">تسجيل الدخول</a>
+    </div>
+  </div>
+
+  <div id="notEnrolledState">
+    <div class="status-box">
+      <div class="icon">🔒</div>
+      <h2>لسه مش مشترك في الكورس ده</h2>
+      <p>اشترك في الكورس الأول عشان تقدر توصل للدروس.</p>
+      <a href="#" id="enrollNowLink" class="btn-link">الاشتراك في الكورس</a>
+    </div>
+  </div>
+
+  <div id="lessonsState">
+    <h1 class="page-title" id="courseTitle"></h1>
+    <div class="lessons-list" id="lessonsList"></div>
+  </div>
+</div>
+
+<script>
+  // Wire the "enroll now" link once we know the course id (small inline
+  // helper since it just needs the query param, no Firebase needed here).
+  const p = new URLSearchParams(window.location.search);
+  const cid = p.get('id');
+  const enrollLink = document.getElementById('enrollNowLink');
+  if(enrollLink && cid){
+    enrollLink.href = 'enroll.html?course=' + encodeURIComponent(cid);
+  }
+</script>
+
+</body>
+</html>

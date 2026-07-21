@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مشاهدة الدرس | النزيه</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import { getCourseById } from "./courses-data.js";
+  import { extractYouTubeId } from "./youtube-utils.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAjoaaMX2D6KidAp6z8yapoeSxubNp_qDY",
+    authDomain: "alnazih.firebaseapp.com",
+    projectId: "alnazih",
+    storageBucket: "alnazih.firebasestorage.app",
+    messagingSenderId: "318081681460",
+    appId: "1:318081681460:web:7526996a02a1f3ac5be261",
+    measurementId: "G-6L9S7XKBXF"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const params = new URLSearchParams(window.location.search);
+  const courseId = params.get('course');
+  const videoId = params.get('video');
+  const course = courseId ? getCourseById(courseId) : null;
+
+  function showState(state){
+    ['loadingState','notFound','loggedOutState','notEnrolledState','watchState'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = (id === state) ? 'block' : 'none';
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if(!course || !videoId){
+      showState('notFound');
+    }
+  });
+
+  onAuthStateChanged(auth, async (user) => {
+    if(!course || !videoId) return;
+
+    if(!user){
+      showState('loggedOutState');
+      return;
+    }
+
+    try{
+      const studentSnap = await getDoc(doc(db, 'students', user.uid));
+      const studentData = studentSnap.exists() ? studentSnap.data() : null;
+      const enrolled = studentData && Array.isArray(studentData.enrolledCourses)
+        ? studentData.enrolledCourses
+        : [];
+
+      if(!enrolled.includes(course.id)){
+        showState('notEnrolledState');
+        return;
+      }
+
+      const lessonSnap = await getDoc(doc(db, 'course_videos', videoId));
+      if(!lessonSnap.exists() || lessonSnap.data().courseId !== course.id){
+        showState('notFound');
+        return;
+      }
+
+      const lesson = lessonSnap.data();
+      renderLesson(lesson);
+      showState('watchState');
+    }catch(err){
+      showState('notEnrolledState');
+    }
+  });
+
+  function renderLesson(lesson){
+    document.title = (lesson.title || 'الدرس') + ' | النزيه';
+    document.getElementById('lessonTitle').textContent = lesson.title || 'الدرس';
+    document.getElementById('courseBackLink').href = 'course.html?id=' + encodeURIComponent(course.id);
+    document.getElementById('courseBackLink').textContent = '→ العودة لـ ' + course.title;
+
+    const ytId = extractYouTubeId(lesson.youtube || '');
+    const frame = document.getElementById('videoFrame');
+    if(ytId){
+      frame.src = `https://www.youtube.com/embed/${ytId}`;
+    } else {
+      document.getElementById('videoWrap').innerHTML = '<p class="video-error">مفيش فيديو صالح للدرس ده.</p>';
+    }
+
+    const pdfBox = document.getElementById('pdfBox');
+    if(lesson.pdfUrl){
+      pdfBox.style.display = 'flex';
+      document.getElementById('pdfLink').href = lesson.pdfUrl;
+    }
+  }
+</script>
+<style>
+  :root{
+    --bg: #0f0b14;
+    --card: #1a1424;
+    --line: rgba(211,117,164,0.16);
+    --primary: #be285a;
+    --primary-light: #d3488a;
+    --accent: #d375a4;
+    --text: #f5e9ee;
+    --text-mute: #8b7a94;
+    --gold: #e8b25c;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family:'Almarai', sans-serif;
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 700px 500px at 85% -5%, rgba(190,40,90,0.22), transparent 60%),
+      radial-gradient(ellipse 600px 500px at 10% 90%, rgba(211,117,164,0.12), transparent 55%);
+    pointer-events:none; z-index:0;
+  }
+  h1,h2,h3{ font-family:'Cairo', sans-serif; }
+  a{ text-decoration:none; color:inherit; }
+
+  .page{
+    position:relative; z-index:1;
+    max-width:760px;
+    margin:0 auto;
+    padding:40px 20px 70px;
+  }
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px;
+    color: var(--text-mute);
+    font-size:.88rem; font-weight:700;
+    margin-bottom:20px;
+    transition: color .2s ease;
+  }
+  .back-link:hover{ color: var(--accent); }
+
+  h1.lesson-title{ font-size:1.25rem; margin-bottom:18px; }
+
+  .video-wrap{
+    position:relative;
+    width:100%;
+    aspect-ratio:16/9;
+    border-radius:18px;
+    overflow:hidden;
+    background: #000;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+  }
+  .video-wrap iframe{ position:absolute; inset:0; width:100%; height:100%; border:none; }
+  .video-error{ color:var(--text-mute); text-align:center; padding-top:40%; }
+
+  .pdf-box{
+    display:none;
+    align-items:center; justify-content:space-between;
+    gap:12px;
+    margin-top:20px;
+    background: var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:16px 20px;
+  }
+  .pdf-box .pdf-label{ display:flex; align-items:center; gap:10px; font-size:.92rem; font-weight:700; }
+  .pdf-box a.pdf-download{
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color:#fff; font-family:'Cairo',sans-serif; font-weight:700; font-size:.85rem;
+    padding:9px 20px; border-radius:999px; white-space:nowrap;
+  }
+
+  .status-box{
+    text-align:center; padding:50px 20px;
+    background: var(--card);
+    border:1px solid var(--line);
+    border-radius:24px;
+  }
+  .status-box .icon{ font-size:2.4rem; margin-bottom:14px; }
+  .status-box h2{ font-size:1.15rem; margin-bottom:10px; }
+  .status-box p{ color:var(--text-mute); font-size:.92rem; line-height:1.9; margin-bottom:20px; }
+  .status-box .btn-link{
+    display:inline-block;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color:#fff;
+    font-weight:700; font-size:.9rem;
+    padding:11px 26px; border-radius:999px;
+  }
+
+  #notFound, #loggedOutState, #notEnrolledState, #watchState{ display:none; }
+  #loadingState{ display:block; }
+
+  @media (max-width:480px){
+    .pdf-box{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <a href="index.html" class="back-link" id="courseBackLink">→ العودة للصفحة الرئيسية</a>
+
+  <div id="loadingState">
+    <div class="status-box"><p>جاري التحميل...</p></div>
+  </div>
+
+  <div id="notFound">
+    <div class="status-box">
+      <div class="icon">❓</div>
+      <h2>الدرس ده مش موجود</h2>
+      <p>ممكن يكون الرابط غلط.</p>
+      <a href="index.html" class="btn-link">الرجوع للرئيسية</a>
+    </div>
+  </div>
+
+  <div id="loggedOutState">
+    <div class="status-box">
+      <div class="icon">🔒</div>
+      <h2>لازم تسجل دخول الأول</h2>
+      <p>سجّل دخولك عشان تقدر تشوف الدرس.</p>
+      <a href="login.html" class="btn-link">تسجيل الدخول</a>
+    </div>
+  </div>
+
+  <div id="notEnrolledState">
+    <div class="status-box">
+      <div class="icon">🔒</div>
+      <h2>لسه مش مشترك في الكورس ده</h2>
+      <p>اشترك في الكورس الأول عشان تقدر تشوف الدرس.</p>
+      <a href="index.html" class="btn-link">الرجوع للرئيسية</a>
+    </div>
+  </div>
+
+  <div id="watchState">
+    <h1 class="lesson-title" id="lessonTitle"></h1>
+    <div class="video-wrap" id="videoWrap">
+      <iframe id="videoFrame" src="" title="فيديو الدرس" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+    </div>
+    <div class="pdf-box" id="pdfBox">
+      <span class="pdf-label">📄 المذاكرة المرفقة مع الدرس</span>
+      <a href="#" id="pdfLink" class="pdf-download" target="_blank" rel="noopener">تحميل PDF</a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
