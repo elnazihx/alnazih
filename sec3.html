@@ -39,6 +39,24 @@
     'الصف الثالث الثانوي': 'sec3.html'
   };
 
+  function updateCourseCard(data){
+    const card = document.getElementById('courseCard');
+    if(!card) return;
+
+    const enrolled = data && Array.isArray(data.enrolledCourses)
+      ? data.enrolledCourses.includes('course3')
+      : false;
+
+    const cta = card.querySelector('.course-promo-cta');
+    if(enrolled){
+      card.href = 'course.html?id=course3';
+      if(cta) cta.textContent = 'ابدأ المذاكرة الآن ▶';
+    } else {
+      card.href = 'enroll.html?course=course3';
+      if(cta) cta.textContent = 'تفاصيل الكورس';
+    }
+  }
+
   let intentChecked = false;
   async function checkPendingIntentOnce(uid){
     if(intentChecked) return;
@@ -113,6 +131,7 @@
       document.getElementById('studentName').textContent = data.fullname || 'الطالب';
       document.getElementById('studentStage').textContent = data.stage || '';
 
+      updateCourseCard(data);
       checkPendingIntentOnce(user.uid);
     }, (err) => {
       document.getElementById('loadingScreen').style.display = 'none';
@@ -353,7 +372,7 @@
     </div>
 
     <div class="cards">
-      <a href="enroll.html?course=course3" class="course-promo-card">
+      <a href="enroll.html?course=course3" class="course-promo-card" id="courseCard">
         <div class="course-promo-thumb">
           <img src="assets/kors3.png" alt="كورس الشهر الأول - تالتة ثانوي" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
           <span class="placeholder-tag" style="display:none; flex-direction:column; align-items:center;">
