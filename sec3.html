@@ -225,6 +225,43 @@
     color: var(--text);
   }
   .info-card p{ color: var(--text-mute); font-size:.85rem; line-height:1.6; }
+
+  /* Course promo card - same visual style as the course cards on index.html */
+  .course-promo-card{
+    background: var(--card);
+    border:1px solid var(--line);
+    border-radius:18px;
+    overflow:hidden;
+    display:block;
+    transition: transform .3s ease, border-color .3s ease;
+  }
+  .course-promo-card:hover{ transform:translateY(-4px); border-color:rgba(211,117,164,0.4); }
+  .course-promo-thumb{
+    aspect-ratio:4/3;
+    background: linear-gradient(135deg, rgba(190,40,90,0.18), rgba(211,117,164,0.06));
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .course-promo-thumb img{ width:100%; height:100%; object-fit:cover; }
+  .course-promo-thumb .placeholder-tag{
+    font-family:'Cairo',sans-serif; font-size:.72rem; font-weight:700;
+    color: var(--text-mute); text-align:center; padding:0 10px;
+  }
+  .course-promo-body{ padding:18px 20px 22px; }
+  .course-promo-body h3{ font-family:'Cairo',sans-serif; font-size:1.02rem; font-weight:700; color:var(--text); margin-bottom:6px; }
+  .course-promo-desc{ color:var(--text-mute); font-size:.85rem; margin-bottom:14px; }
+  .course-promo-foot{ display:flex; align-items:center; justify-content:space-between; }
+  .course-promo-price{ font-family:'Cairo',sans-serif; font-weight:800; color:var(--gold); font-size:1.05rem; }
+  .course-promo-cta{
+    font-family:'Cairo',sans-serif; font-size:.82rem; font-weight:700;
+    color: var(--primary-light);
+    padding:7px 16px; border-radius:999px;
+    background: var(--accent-soft);
+    border:1px solid rgba(211,117,164,0.25);
+    transition: all .2s ease;
+  }
+  .course-promo-card:hover .course-promo-cta{ background: var(--primary); color:#fff; }
 </style>
 </head>
 <body>
@@ -252,9 +289,21 @@
     </div>
 
     <div class="cards">
-      <a href="enroll.html?course=course3" class="info-card" style="display:block;">
-        <h3>كورس الشهر الأول - تالتة ثانوي</h3>
-        <p>200 جنيه — ابدأ رحلتك في الكيمياء من هنا.</p>
+      <a href="enroll.html?course=course3" class="course-promo-card">
+        <div class="course-promo-thumb">
+          <img src="assets/kors3.png" alt="كورس الشهر الأول - تالتة ثانوي" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+          <span class="placeholder-tag" style="display:none; flex-direction:column; align-items:center;">
+            صورة kors3.png<br>هتتضاف قريب
+          </span>
+        </div>
+        <div class="course-promo-body">
+          <h3>كورس الشهر الأول - تالتة ثانوي</h3>
+          <p class="course-promo-desc">ابدأ رحلتك في الكيمياء من هنا</p>
+          <div class="course-promo-foot">
+            <span class="course-promo-price">200 جنيه</span>
+            <span class="course-promo-cta">تفاصيل الكورس</span>
+          </div>
+        </div>
       </a>
       <div class="info-card">
         <h3>تقدمك الدراسي</h3>
