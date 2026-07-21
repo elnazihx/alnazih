@@ -309,6 +309,19 @@
     font-weight:700; font-size:.9rem;
     padding:10px 22px; border-radius:999px;
   }
+  .status-box .btn-row{
+    display:flex; align-items:center; justify-content:center;
+    gap:10px; margin-top:20px; flex-wrap:wrap;
+  }
+  .status-box .btn-row .btn-link{ margin-top:0; }
+  .status-box .btn-row .btn-link-primary{
+    display:inline-block;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    border:1px solid transparent;
+    color:#fff;
+    font-weight:700; font-size:.9rem;
+    padding:10px 22px; border-radius:999px;
+  }
 
   #enrollMsg{ text-align:center; font-size:.88rem; font-weight:700; margin-bottom:16px; padding:10px 14px; border-radius:12px; }
 
@@ -342,7 +355,10 @@
         <div class="icon">🔒</div>
         <h2>لازم تسجل دخول الأول</h2>
         <p>سجّل دخولك أو اعمل حساب جديد عشان تقدر تشترك في الكورس.</p>
-        <a href="login.html" class="btn-link">تسجيل الدخول</a>
+        <div class="btn-row">
+          <a href="login.html" class="btn-link">تسجيل الدخول</a>
+          <a href="signup.html" class="btn-link-primary">إنشاء حساب</a>
+        </div>
       </div>
     </div>
 
