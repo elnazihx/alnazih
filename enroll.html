@@ -103,13 +103,26 @@
       document.getElementById('enrollStudentName').textContent = currentStudentData?.fullname || 'الطالب';
       showState('formState');
     }catch(err){
-      showState('formState');
+      // If we couldn't verify who this student is, we must NOT show the
+      // enrollment form — submitting without a confirmed identity would
+      // create a request with no name/phone attached to it.
+      currentUser = null;
+      showState('loggedOutState');
     }
   });
 
   document.getElementById('enrollForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if(!currentUser || !course) return;
+
+    // Hard guard: never submit an enrollment request without confirmed
+    // student data (name/phone). If this is missing, something went
+    // wrong verifying the account — block the request instead of
+    // sending it with blank identity fields.
+    if(!currentStudentData || !currentStudentData.fullname || !currentStudentData.phone){
+      showState('loggedOutState');
+      return;
+    }
 
     const submitBtn = document.getElementById('enrollSubmitBtn');
     const txRef = document.getElementById('transactionRef').value.trim();
